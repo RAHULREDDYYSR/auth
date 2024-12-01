@@ -1,21 +1,16 @@
-const express = require('express');
-const router = express.Router();
-const { authenticateUser } = require('../middleware/authentication');
+import express from "express";
+const app = express();
+import {authenticateUser} from "../middleware/authentication.js"
+import {createReview, getAllReviews,
+       getSingleReview, updateReview,
+       deleteReview} from '../controllers/reviewController.js'
 
-const {
-  createReview,
-  getAllReviews,
-  getSingleReview,
-  updateReview,
-  deleteReview,
-} = require('../controllers/reviewController');
 
-router.route('/').post(authenticateUser, createReview).get(getAllReviews);
+app.route('/').post(authenticateUser, createReview).get(getAllReviews)
 
-router
-  .route('/:id')
-  .get(getSingleReview)
-  .patch(authenticateUser, updateReview)
-  .delete(authenticateUser, deleteReview);
+app.route('/:id')
+.get(getSingleReview)
+.patch(authenticateUser, updateReview)
+.delete(authenticateUser, deleteReview)
 
-module.exports = router;
+export default app
