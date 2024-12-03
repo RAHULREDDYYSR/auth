@@ -3,6 +3,7 @@ import { StatusCodes } from 'http-status-codes'
 import CustomError from '../errors/index.js'
 import { attachCookiesToRequest,createTokenUser } from '../utils/index.js'
 import crypto from 'crypto'
+import { log } from 'console'
 
 
 export const register = async(req, res)=>{
@@ -24,6 +25,21 @@ export const register = async(req, res)=>{
     //  res.status(StatusCodes.CREATED).json({user:tokenUser})    
 }
     
+export const verifyEmail = async(req, res)=>{
+    const {verificationToken, email} = req.body
+    const user = await User.findOne({email: email})
+    if(!user){
+        throw new CustomError.UnauthenticatedError('Invalid email or verification token')
+    }
+    if(user.verificationToken !== verificationToken || user.email !== email){
+        throw new CustomError.UnauthenticatedError('Invalid email or verification token')
+    }
+    user.isVerified = true
+    user.verified = Date.now()
+    user.verificationToken = ''
+    await user.save()
+    res.status(StatusCodes.OK).json({msg:'Email verified successfully'})   
+}
 export const login = async(req, res)=>{
     const {email, password} = req.body
     if(!email || !password){
