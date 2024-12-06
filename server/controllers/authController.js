@@ -3,7 +3,7 @@ import {Token} from '../models/token.js'
 
 import { StatusCodes } from 'http-status-codes'
 import CustomError from '../errors/index.js'
-import { attachCookiesToRequest,createTokenUser, sendVerificationEmail } from '../utils/index.js'
+import { attachCookiesToRequest,createTokenUser, sendVerificationEmail,sendResetPasswordEmail,createHash } from '../utils/index.js'
 import crypto from 'crypto'
 
 
@@ -96,9 +96,54 @@ export const login = async(req, res)=>{
 }
 
 export const logout = async(req, res)=>{
-    res.cookie('token','logout',{
+
+    await Token.findOneAndDelete({user:req.user.userId});
+
+    res.cookie('accessToken','logout',{
+        httpOnly: true,
+        expires: new Date(Date.now()),
+    });
+    res.cookie('refreshToken','logout',{
         httpOnly: true,
         expires: new Date(Date.now()),
     });
     res.status(StatusCodes.OK).json({msg:'User logged out successfully'})
+}
+
+
+export const forgotPassword = async (req, res)=>{
+    const {email} = req.body
+    if(!email){
+        throw new CustomError.BadRequestError('Please provide your email')
+    }
+    const user = await User.findOne({email:email});
+    if(user){
+    const passwordToken = crypto.randomBytes(70).toString('hex')
+    //send email
+    const origin = 'http://localhost:3000';
+    await sendResetPasswordEmail({name:user.name, email:user.email, token:passwordToken,origin})
+    const tenMinutes = 1000 *60*10
+    const passwordTokenExpirationDate = new Date(Date.now() + tenMinutes)
+    user.passwordToken = createHash(passwordToken)
+    user.passwordTokenExpirationDate = passwordTokenExpirationDate
+    await user.save()
+    }
+    res.status(StatusCodes.OK).json({msg: ' please check your email for rest password link'})
+}
+
+export const resetPassword = async (req, res)=>{
+    const {token, email, password} = req.body
+    if(!email || !password || !token){
+        throw new CustomError.BadRequestError('Please provide your email, password and token')
+    }
+    const user = await User.findOne({email});
+    if(user){
+        const currentDate = new Date()
+        if(user.passwordToken === createHash(token) && user.passwordTokenExpirationDate > currentDate){
+            user.password = password
+            user.passwordToken = null
+            user.passwordTokenExpirationDate = null
+            await user.save()
+        }
+    }
 }
